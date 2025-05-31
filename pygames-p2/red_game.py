@@ -1,9 +1,9 @@
 import pygame
 import random
 
-# Librerias necearias para el entrenamiento del modelo por vecinos cercanos
+# Librerias necearias para el modelo de red neuronal
 import numpy as np 
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
 
 # Inicializar Pygame
 pygame.init()
@@ -50,16 +50,16 @@ datos_modelo = []
 
 # Cargar las imágenes
 jugador_frames = [
-    pygame.image.load('pygamesc/assets/sprites/mono_frame_1.png'),
-    pygame.image.load('pygamesc/assets/sprites/mono_frame_2.png'),
-    pygame.image.load('pygamesc/assets/sprites/mono_frame_3.png'),
-    pygame.image.load('pygamesc/assets/sprites/mono_frame_4.png')
+    pygame.image.load('assets/sprites/sage.png'),
+    pygame.image.load('assets/sprites/sage.png'),
+    pygame.image.load('assets/sprites/sage.png'),
+    pygame.image.load('assets/sprites/sage.png')
 ]
 
-bala_img = pygame.image.load('pygamesc/assets/sprites/purple_ball.png')
-fondo_img = pygame.image.load('pygamesc/assets/game/fondo2.png')
-nave_img = pygame.image.load('pygamesc/assets/game/ufo.png')
-menu_img = pygame.image.load('pygamesc/assets/game/menu.png')
+bala_img = pygame.image.load('assets/sprites/bola1.png')
+fondo_img = pygame.image.load('assets/game/fondo2.png')
+nave_img = pygame.image.load('assets/game/ufo.png')
+menu_img = pygame.image.load('assets/game/menu.png')
 
 # Escalar la imagen de fondo para que coincida con el tamaño de la pantalla
 fondo_img = pygame.transform.scale(fondo_img, (w, h))
@@ -78,11 +78,11 @@ frame_speed = 10  # Cuántos frames antes de cambiar a la siguiente imagen
 frame_count = 0
 
 # Variables para la bala
-velocidad_bala = -10  # Velocidad de la bala hacia la izquierda
+velocidad_bala = -15  # Velocidad de la bala hacia la izquierda
 bala_disparada = False
 
 # Variables para la bala2
-velocidad_bala2 = -10  # Velocidad de la bala hacia abajo
+velocidad_bala2 = -10 # Velocidad de la bala hacia abajo
 bala_disparada2 = False
 
 # Variables para el fondo en movimiento
@@ -243,7 +243,8 @@ def pausa_juego():
 
 # Función para mostrar el menú y seleccionar el modo de juego
 def mostrar_menu():
-    global menu_activo, modo_auto
+    global menu_activo, modo_auto, datos_modelo, modelo_nn, modelo_nn_delantero  # ¡Declarar todas las variables globales!
+
     pantalla.fill(NEGRO)
     texto = fuente.render("Presiona 'A' para Auto, 'M' para Manual, o 'Q' para Salir", True, BLANCO)
     pantalla.blit(texto, (w // 4, h // 2))
@@ -255,13 +256,19 @@ def mostrar_menu():
                 pygame.quit()
                 exit()
             if evento.type == pygame.KEYDOWN:
-                # Cambios agregados, si se presiona la tecla A se inicia el modo automatico
                 if evento.key == pygame.K_a:
-                    entrenar_modelo() # Se llama a la funcion para entrenar el modelo con los datos recopilados de la partida anterior
+                    print(" Iniciando entrenamiento del modelo ")
+                    print("="*50 + "\n")
+                    entrenar_modelo()
+                    print(" ENTRENAMIENTO COMPLETADO - MODO AUTO ACTIVADO ")
+                    print("="*50 + "\n")
                     modo_auto = True
                     menu_activo = False
                 elif evento.key == pygame.K_m:
                     modo_auto = False
+                    datos_modelo = []  # ¡Reemplazar la lista en lugar de clear()!
+                    modelo_nn = None   # Reiniciar ambos modelos
+                    modelo_nn_delantero = None
                     menu_activo = False
                 elif evento.key == pygame.K_q:
                     print("Juego terminado. Datos recopilados:", datos_modelo)
@@ -287,70 +294,67 @@ def reiniciar_juego():
     salto = False
     en_suelo = True
     # Mostrar los datos recopilados hasta el momento
-    print("Datos recopilados para el modelo: ", datos_modelo)
+    print("Datos usados para el modelo: ", datos_modelo)
     mostrar_menu()  # Mostrar el menú de nuevo para seleccionar modo
     
     
 # Cambios realizados para el programa phaser en python -------------------
-modelo_nn = None  # Se inicializa el modelo de vecinos cercanos como None
-modelo_nn_delantero = None  # Se inicializa el modelo de vecinos cercanos como None
+modelo_nn = None  # Se inicializa el modelo de red neuronal como None
+modelo_nn_delantero = None  # Se inicializa el modelo de red neuronal como None
 
-# Creamos una funcion para entrenar el modelo de vecinos cercanos
+# Creamos una funcion para entrenar el modelo de red neuronal 
 def entrenar_modelo():
     global modelo_nn, modelo_nn_delantero
 
-    if len(datos_modelo) < 5:
-        print("No hay suficientes datos para entrenar.")
+    if len(datos_modelo) < 50:
+        print(len(datos_modelo))
         return
 
-    print("Entrenando modelos de vecinos cercanos con", len(datos_modelo), "datos...")
+    print("Entrenando modelo de red neuronal con", len(datos_modelo), "datos...")
 
-    # Datos para salto
+    # Entradas
     X_salto = np.array([[v, d] for v, d, _, _, _, _ in datos_modelo])
     Y_salto = np.array([s for _, _, s, _, _, _ in datos_modelo])
 
-    # Datos para movimiento delantero
     X_delantero = np.array([[v2, d2] for _, _, _, v2, d2, _ in datos_modelo])
     Y_delantero = np.array([m for _, _, _, _, _, m in datos_modelo])
 
-    # Entrenar los clasificadores k-NN (usaremos k=3 por defecto)
-    modelo_nn = KNeighborsClassifier(n_neighbors=3)
+    # Modelo para salto
+    modelo_nn = MLPClassifier(hidden_layer_sizes=(5, 5), max_iter=1000)
     modelo_nn.fit(X_salto, Y_salto)
 
-    modelo_nn_delantero = KNeighborsClassifier(n_neighbors=3)
+    # Modelo para movimiento hacia adelante
+    modelo_nn_delantero = MLPClassifier(hidden_layer_sizes=(5, 5), max_iter=1000)
     modelo_nn_delantero.fit(X_delantero, Y_delantero)
 
-    print("Modelos de vecinos cercanos entrenados.")
+    print("Modelo de red neuronal entrenados exitosamente.")
 
 
-
-# Función para decidir si el jugador debe saltar automáticamente basado en el modelo 
+# Función para decidir si el jugador debe saltar automáticamente basado en la red neuronal
 def decidir_salto_auto():
     global velocidad_bala, jugador, bala, modelo_nn
 
-    if modelo_nn is None:
-        print("Modelo no entrenado.")
+    if modelo_nn is None: # Si el modelo no ha sido entrenado, no se puede decidir
         return False
 
+    # Se obtiene la velocidad de la bala y la distancia al jugador
     distancia = abs(jugador.x - bala.x)
     entrada = np.array([[velocidad_bala, distancia]])
-    prediccion = modelo_nn.predict(entrada)[0]
+    prediccion = modelo_nn.predict(entrada) # Se hace la predicción con el modelo entrenado
 
-    return prediccion == 1
+    return prediccion[0] == 1 # Si la predicción es 1, se decide saltar
 
 def decidir_delantero_auto():
     global velocidad_bala2, jugador, bala2, modelo_nn_delantero
 
     if modelo_nn_delantero is None:
-        print("Modelo de avance no entrenado.")
         return False
 
     distancia2 = abs(jugador.y - bala2.y)
     entrada = np.array([[velocidad_bala2, distancia2]])
-    prediccion = modelo_nn_delantero.predict(entrada)[0]
+    prediccion = modelo_nn_delantero.predict(entrada)
 
-    return prediccion == 1
-
+    return prediccion[0] == 1
 
 
 

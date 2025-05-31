@@ -1,9 +1,10 @@
 import pygame
 import random
 
-# Librerias necearias para el modelo de red neuronal
+# Librerias necearias para el arbol de decision
 import numpy as np 
-from sklearn.neural_network import MLPClassifier
+from sklearn.tree import DecisionTreeClassifier
+
 
 # Inicializar Pygame
 pygame.init()
@@ -255,13 +256,19 @@ def mostrar_menu():
                 pygame.quit()
                 exit()
             if evento.type == pygame.KEYDOWN:
-                # Cambios agregados, si se presiona la tecla A se inicia el modo automatico
                 if evento.key == pygame.K_a:
-                    entrenar_modelo() # Se llama a la funcion para entrenar el modelo con los datos recopilados de la partida anterior
+                    print(" Iniciando entrenamiento del modelo ")
+                    print("="*50 + "\n")
+                    entrenar_modelo()
+                    print(" ENTRENAMIENTO COMPLETADO - MODO AUTO ACTIVADO ")
+                    print("="*50 + "\n")
                     modo_auto = True
                     menu_activo = False
                 elif evento.key == pygame.K_m:
                     modo_auto = False
+                    datos_modelo = []  # Asignar nueva lista vacía
+                    modelo_nn = None  # Reiniciar modelos
+                    modelo_nn_delantero = None
                     menu_activo = False
                 elif evento.key == pygame.K_q:
                     print("Juego terminado. Datos recopilados:", datos_modelo)
@@ -292,43 +299,45 @@ def reiniciar_juego():
     
     
 # Cambios realizados para el programa phaser en python -------------------
-modelo_nn = None  # Se inicializa el modelo de red neuronal como None
-modelo_nn_delantero = None  # Se inicializa el modelo de red neuronal como None
+modelo_nn = None  # Se inicializa el modelo de arbol de desicion como None
+modelo_nn_delantero = None  # Se inicializa el modelo de arbol de desicion como None
 
-# Creamos una funcion para entrenar el modelo de red neuronal 
+# Creamos una funcion para entrenar el modelo de arbol de decision
 def entrenar_modelo():
     global modelo_nn, modelo_nn_delantero
 
     if len(datos_modelo) < 30:
-        print("No hay suficientes datos para entrenar.")
+        print(len(datos_modelo))
         return
 
-    print("Entrenando modelo de red neuronal con", len(datos_modelo), "datos...")
+    print("Entrenando modelos de árboles de decisión con", len(datos_modelo), "datos...")
 
-    # Entradas
+    # Entradas y salidas para salto
     X_salto = np.array([[v, d] for v, d, _, _, _, _ in datos_modelo])
     Y_salto = np.array([s for _, _, s, _, _, _ in datos_modelo])
 
+    # Entradas y salidas para avance (delantero)
     X_delantero = np.array([[v2, d2] for _, _, _, v2, d2, _ in datos_modelo])
     Y_delantero = np.array([m for _, _, _, _, _, m in datos_modelo])
 
-    # Modelo para salto
-    modelo_nn = MLPClassifier(hidden_layer_sizes=(5, 5), max_iter=1000)
+    # Modelo de árbol para salto
+    modelo_nn = DecisionTreeClassifier()
     modelo_nn.fit(X_salto, Y_salto)
 
-    # Modelo para movimiento hacia adelante
-    modelo_nn_delantero = MLPClassifier(hidden_layer_sizes=(5, 5), max_iter=1000)
+    # Modelo de árbol para movimiento delantero
+    modelo_nn_delantero = DecisionTreeClassifier()
     modelo_nn_delantero.fit(X_delantero, Y_delantero)
 
-    print("Modelo de red neuronal entrenados exitosamente.")
+    print("Modelos de árboles entrenados exitosamente.")
 
 
-# Función para decidir si el jugador debe saltar automáticamente basado en la red neuronal
+
+# Función para decidir si el jugador debe saltar automáticamente basado en la predicción del modelo
 def decidir_salto_auto():
     global velocidad_bala, jugador, bala, modelo_nn
 
     if modelo_nn is None: # Si el modelo no ha sido entrenado, no se puede decidir
-        print("Modelo no entrenado. No se puede decidir salto.")
+        print("No se puede decidir salto.")
         return False
 
     # Se obtiene la velocidad de la bala y la distancia al jugador

@@ -82,7 +82,7 @@ velocidad_bala = -10  # Velocidad de la bala hacia la izquierda
 bala_disparada = False
 
 # Variables para la bala2
-velocidad_bala2 = -10  # Velocidad de la bala hacia abajo
+velocidad_bala2 = -5  # Velocidad de la bala hacia abajo
 bala_disparada2 = False
 
 # Variables para el fondo en movimiento
@@ -257,7 +257,11 @@ def mostrar_menu():
             if evento.type == pygame.KEYDOWN:
                 # Cambios agregados, si se presiona la tecla A se inicia el modo automatico
                 if evento.key == pygame.K_a:
+                    print(" Iniciando entrenamiento del modelo ")
+                    print("="*50 + "\n")
                     entrenar_modelo() # Se llama a la funcion para entrenar el modelo con los datos recopilados de la partida anterior
+                    print(" ENTRENAMIENTO COMPLETADO - MODO AUTO ACTIVADO ")
+                    print("="*50 + "\n")
                     modo_auto = True
                     menu_activo = False
                 elif evento.key == pygame.K_m:
@@ -265,7 +269,7 @@ def mostrar_menu():
                     datos_modelo.clear()  # Limpiar dataset
                     global modelo
                     modelo =  KNeighborsClassifier(n_neighbors=3)
-                    print("Modo manual activado. Datos anteriores y modelo reiniciados.")
+                    print("Modo manual, dataset eliminado, modelo reiniciados.")
                     menu_activo = False
                 elif evento.key == pygame.K_q:
                     print("Juego terminado. Datos recopilados:", datos_modelo)
@@ -291,9 +295,7 @@ def reiniciar_juego():
     salto = False
     en_suelo = True
     # Mostrar los datos recopilados hasta el momento
-    for dato in datos_modelo:
-        print("Datos del modelo: ",len(datos_modelo))
-        print("Datos recopilados: ", " ", dato)
+    print("Datos del modelo: ",datos_modelo)
     #print("Datos recopilados para el modelo: ", datos_modelo)
     mostrar_menu()  # Mostrar el menú de nuevo para seleccionar modo
     
@@ -309,11 +311,11 @@ modelo_nn_delantero = None  # Se inicializa el modelo de vecinos cercanos como N
 def entrenar_modelo():
     global modelo_nn, modelo_nn_delantero
 
-    if len(datos_modelo) < 5:
-        print("No hay suficientes datos para entrenar.")
+    if len(datos_modelo) < 40:
+        print(len(datos_modelo))
         return
 
-    print("Entrenando modelos de vecinos cercanos con", len(datos_modelo), "datos...")
+    print("Entrenando modelos de vecinos ", len(datos_modelo), "datos")
 
     # Datos para salto
     X_salto = np.array([[v, d] for v, d, _, _, _, _ in datos_modelo])
@@ -330,7 +332,7 @@ def entrenar_modelo():
     modelo_nn_delantero = KNeighborsClassifier(n_neighbors=3)
     modelo_nn_delantero.fit(X_delantero, Y_delantero)
 
-    print("Modelos de vecinos cercanos entrenados.")
+    print("Modelos de vecinos entrenados.")
 
 
 
@@ -339,7 +341,6 @@ def decidir_salto_auto():
     global velocidad_bala, jugador, bala, modelo_nn
 
     if modelo_nn is None:
-        print("Modelo no entrenado.")
         return False
 
     distancia = abs(jugador.x - bala.x)
@@ -352,7 +353,6 @@ def decidir_delantero_auto():
     global velocidad_bala2, jugador, bala2, modelo_nn_delantero
 
     if modelo_nn_delantero is None:
-        print("Modelo de avance no entrenado.")
         return False
 
     distancia2 = abs(jugador.y - bala2.y)
